@@ -4,7 +4,7 @@
 #include <QMainWindow>
 #include <QLabel>
 #include <QtSql/QSqlDatabase>
-#include <QShortcut>
+#include <qhotkey.h>
 
 class MainWindow : public QMainWindow
 {
@@ -15,21 +15,24 @@ public:
     ~MainWindow();
 
 private slots:
-    // 处理快捷键触发的核心业务流 (对应 AHK 的 *$#C 逻辑)
-    void onShortcutActivated();
+    // 核心业务流：由全局热键触发
+    void onHandleGlobalWorkflow();
 
 private:
-    // 功能步骤分离
-    void setupUI();            // 初始化界面布局
-    void setupShortcuts();     // 初始化快捷键绑定
-    void initDatabase();       // 初始化数据库连接
-    void loadData();           // 加载初始序号
-    void incrementAndSave();   // 执行自增并持久化
-    void updateLabel();        // 仅刷新界面文本
+    // --- 过程分离：初始化函数 ---
+    void setupUI();             // 界面初始化
+    void setupGlobalHotkeys();  // 全局热键初始化
+    void initDatabase();        // 数据库环境初始化
+
+    // --- 功能分离：逻辑函数 ---
+    void loadPersistentData();  // 加载数据
+    void updatePersistentData();// 保存数据
+    void refreshInterface();    // 刷新显示
 
     QLabel *label;
-    int Xuhao = 1;             // 对应 AHK 中的 CurrentVal
+    int Xuhao = 1;              // 对应 AHK 中的 CurrentVal [cite: 15]
     QSqlDatabase db;
+    QHotkey *hotkey;            // QHotkey 对象
 };
 
 #endif

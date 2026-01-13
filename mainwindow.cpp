@@ -2,178 +2,111 @@
 #include <QVBoxLayout>
 #include <QSqlError>
 #include <QSqlQuery>
-#include <QDebug>
 #include <QDateTime>
 #include <QApplication>
 #include <QClipboard>
 #include <QStatusBar>
 
 /**
- * 快捷键配置模块
+ * 构造函数：过程与功能分离
+ * 前几行仅负责调用各个功能模块
  */
-void MainWindow::setupShortcuts()
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
-    // 定义快捷键序列（Ctrl+Shift+C），这在大多数场景下不会与系统冲突
-    QShortcut *shortcut = new QShortcut(QKeySequence("Ctrl+Shift+C"), this);
-
-    // 建立信号槽连接：当用户按下快捷键时，执行 onShortcutActivated 函数
-    connect(shortcut, &QShortcut::activated, this, &MainWindow::onShortcutActivated);
+    setupUI();              // 1. 设置界面
+    setupGlobalHotkeys();   // 2. 绑定 Ctrl+Q
+    initDatabase();         // 3. 连接数据库
+    loadPersistentData();   // 4. 同步初始序号
 }
 
-
-
-
-// 核心业务槽函数：快捷键触发入口    逻辑对标 AHK 的 *$#C 流程
-void MainWindow::onShortcutActivated()
-{
-    // 步骤 A：生成当前时间序列字符串
-    // 使用 yyyyMMdd-HHmmss 格式，这种格式在文件名中非常友好
-    QString timeStr = QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss");
-
-    // 步骤 B：字符串拼接
-    // 将“时间戳”与“内存中的当前序号”合并，例如：20231027-143005-1
-    QString result = QString("%1-%2").arg(timeStr).arg(Xuhao);
-
-    // 步骤 C：操作系统剪贴板
-    // 将生成的字符串直接推送到剪贴板，用户可以直接在任何地方粘贴
-    QApplication::clipboard()->setText(result);
-
-    // 步骤 D：触发数据演变逻辑
-    // 该函数负责：1. 增加序号 2. 刷新界面显示 3. 写入数据库
-    incrementAndSave();
-
-    // 步骤 E：视觉反馈
-    // 在状态栏显示临时消息，停留 3000 毫秒，模仿 AHK 的 ToolTip 效果
-    statusBar()->showMessage(QString("已存入剪贴板: %1 | 数据库已更新").arg(result), 3000);
-}
-
-
-
-
-
-/*
-* 构造函数 (Constructor)
-* 职责：仅作为各个独立功能模块的“调度员”。
-* 这种结构将程序的“启动流程”与“具体实现”完全解耦，易于阅读和后期维护。
-*/
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-{
-    setupUI();            // 第一步：构建静态 UI 界面
-    setupShortcuts();     // 第二步：配置全局/局部快捷键监听
-    initDatabase();       // 第三步：建立数据库连接并检查表结构
-    loadData();           // 第四步：从本地数据库同步最新的序号数据到内存
-}
-
-
-// 析构函数 (Destructor)   职责：安全退出。
 MainWindow::~MainWindow()
 {
-    // 程序关闭前确保释放数据库句柄，防止数据库文件被占用锁定
-    if (db.isOpen()) {
-        db.close();
-    }
+    if (db.isOpen()) db.close(); // 安全关闭数据库 [cite: 23]
 }
 
+// --- 第一部分：快捷键触发的核心业务流 ---
 
+/**
+ * 模拟 AHK *$#C:: 热键逻辑
+ */
+void MainWindow::onHandleGlobalWorkflow()
+{
+    // A. 格式化日期 yyyyMMdd-HHmmss [cite: 16]
+    QString timeStr = QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss");
 
-// =================================================================
-// 功能模块实现区
-// =================================================================
+    // B. 组合字符串 (时间-序号) [cite: 17]
+    QString result = QString("%1-%2").arg(timeStr).arg(Xuhao);
 
+    // C. 写入剪贴板 [cite: 16]
+    QApplication::clipboard()->setText(result);
 
+    // D. 序号自增并持久化 [cite: 19]
+    Xuhao++;
+    updatePersistentData();
+    refreshInterface();
 
-// 数据库初始化模块
+    // E. 状态栏提示 (替代 AHK ToolTip) [cite: 22]
+    statusBar()->showMessage(QString("已更新并复制: %1").arg(result), 2000);
+}
+
+// --- 第二部分：各功能模块具体实现 ---
+
+void MainWindow::setupGlobalHotkeys()
+{
+    // 注册全局热键 Ctrl+Q (对应 AHK 的 *$#C) [cite: 12]
+    hotkey = new QHotkey(QKeySequence("Ctrl+Q"), true, this);
+
+    // 连接热键信号到业务流函数
+    connect(hotkey, &QHotkey::activated, this, &MainWindow::onHandleGlobalWorkflow);
+}
+
 void MainWindow::initDatabase()
 {
-    // 加载 SQLite 驱动并指定数据库文件路径（当前运行目录下）
     db = QSqlDatabase::addDatabase("QSQLITE");
-    db.setDatabaseName("CounterData.db");
+    db.setDatabaseName("CounterData.db"); // 对标 AHK 数据库名 [cite: 8]
 
-    // 尝试打开数据库，若失败则输出调试信息并停止初始化
-    if (!db.open()) {
-        qCritical() << "CRITICAL ERROR: 无法打开数据库文件！" << db.lastError().text();
-        return;
+    if (db.open()) {
+        QSqlQuery q;
+        // 创建表 [cite: 10]
+        q.exec("CREATE TABLE IF NOT EXISTS MyCounter (id INTEGER PRIMARY KEY, val INTEGER);");
+        // 初始化数据 [cite: 11]
+        q.exec("INSERT INTO MyCounter (id, val) SELECT 1, 1 WHERE NOT EXISTS (SELECT 1 FROM MyCounter WHERE id=1);");
     }
-
-    QSqlQuery query;
-    // 创建计数表：如果表不存在则创建，id 为 1 的行将始终存储我们的计数器
-    QString createTableSql = "CREATE TABLE IF NOT EXISTS MyCounter (id INTEGER PRIMARY KEY, val INTEGER);";
-    if (!query.exec(createTableSql)) {
-        qDebug() << "SQL Error (CreateTable):" << query.lastError().text();
-    }
-
-    // 初始化检查：如果表里没有任何数据，则插入第一行数据，初始值为 1
-    QString initRowSql = "INSERT INTO MyCounter (id, val) SELECT 1, 1 WHERE NOT EXISTS (SELECT 1 FROM MyCounter WHERE id=1);";
-    query.exec(initRowSql);
 }
 
-
-// 数据读取模块
-void MainWindow::loadData()
+void MainWindow::loadPersistentData()
 {
-    // 从数据库中提取当前生效的序号值
-    QSqlQuery query("SELECT val FROM MyCounter WHERE id=1;");
-    if (query.next()) {
-        // 将查询结果转换为整数并存储在类成员变量 Xuhao 中
-        Xuhao = query.value(0).toInt();
+    QSqlQuery q("SELECT val FROM MyCounter WHERE id=1;");
+        if (q.next()) {
+        Xuhao = q.value(0).toInt(); // 获取当前序号 [cite: 15]
     }
-    // 刷新界面上的 Label 文本
-    updateLabel();
+    refreshInterface();
 }
 
-/**
- * 业务数据保存模块
- */
-void MainWindow::incrementAndSave()
+void MainWindow::updatePersistentData()
 {
-    // 1. 执行内存中的变量自增
-    Xuhao++;
-
-    // 2. 将自增后的最新值同步到 SQLite 数据库中，实现持久化存储
-    QSqlQuery query;
-    query.prepare("UPDATE MyCounter SET val = :newVal WHERE id = 1;");
-    query.bindValue(":newVal", Xuhao);
-
-    if (!query.exec()) {
-        qDebug() << "SQL Error (Update):" << query.lastError().text();
-    }
-
-    // 3. 数据更新后，立即同步刷新 UI 显示
-    updateLabel();
+    QSqlQuery q;
+    q.prepare("UPDATE MyCounter SET val = ? WHERE id = 1;");
+        q.addBindValue(Xuhao);
+    q.exec();
 }
 
-
-/**
- * 用户界面初始化模块
- */
 void MainWindow::setupUI()
 {
-    // 创建中心容器
-    QWidget *centralWidget = new QWidget(this);
-    // 使用垂直布局
-    QVBoxLayout *layout = new QVBoxLayout(centralWidget);
+    QWidget *cw = new QWidget(this);
+    QVBoxLayout *lay = new QVBoxLayout(cw);
 
-    // 初始化标签控件
     label = new QLabel(this);
     label->setAlignment(Qt::AlignCenter);
-    // 使用样式表美化：加大字体并设置 Consolas 字体（等宽字体看数字更整齐）
-    label->setStyleSheet("font-size: 22px; font-family: 'Consolas'; font-weight: bold; color: #2980b9;");
+    label->setStyleSheet("font-size: 22px; font-family: 'Consolas'; color: #2980b9;");
 
-    // 将标签加入布局并设置到主窗口
-    layout->addWidget(label);
-    setCentralWidget(centralWidget);
-
-    // 设置窗口基本属性
-    setWindowTitle("序号生成器 v1.0");
+    lay->addWidget(label);
+    setCentralWidget(cw);
+    setWindowTitle("全局序号生成器");
     resize(320, 160);
 }
 
-/**
- * 界面刷新模块
- */
-void MainWindow::updateLabel()
+void MainWindow::refreshInterface()
 {
-    // 纯粹的 UI 更新函数，不包含任何业务逻辑，只负责显示内存变量的当前值
-    label->setText(QString("下次序号: %1").arg(Xuhao));
+    label->setText(QString("当前序号: %1").arg(Xuhao));
 }
