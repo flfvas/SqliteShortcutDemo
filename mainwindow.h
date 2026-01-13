@@ -15,21 +15,21 @@ public:
     ~MainWindow();
 
 private slots:
-    void incrementXuhao(); // 处理自增逻辑
-
-
+    // 处理快捷键触发的核心业务流 (对应 AHK 的 *$#C 逻辑)
+    void onShortcutActivated();
 
 private:
-    void setupUI();           // 新增
-    void setupShortcuts();    // 新增
-    void updateUI();          // 新增
-    void initDatabase();   // 初始化数据库
-    void loadData();       // 从数据库读取初始值
-    void updateDatabase(); // 更新数据库值
+    // 功能步骤分离
+    void setupUI();            // 初始化界面布局
+    void setupShortcuts();     // 初始化快捷键绑定
+    void initDatabase();       // 初始化数据库连接
+    void loadData();           // 加载初始序号
+    void incrementAndSave();   // 执行自增并持久化
+    void updateLabel();        // 仅刷新界面文本
 
     QLabel *label;
-    int Xuhao = 1;
+    int Xuhao = 1;             // 对应 AHK 中的 CurrentVal
     QSqlDatabase db;
 };
 
-#endif // MAINWINDOW_H
+#endif
