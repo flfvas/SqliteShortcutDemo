@@ -17,7 +17,12 @@ public:
 private slots:
     void incrementXuhao(); // 处理自增逻辑
 
+
+
 private:
+    void setupUI();           // 新增
+    void setupShortcuts();    // 新增
+    void updateUI();          // 新增
     void initDatabase();   // 初始化数据库
     void loadData();       // 从数据库读取初始值
     void updateDatabase(); // 更新数据库值
