@@ -8,29 +8,19 @@
 #include <QClipboard>
 #include <QStatusBar>
 
-/*
-* 构造函数 (Constructor)
-* 职责：仅作为各个独立功能模块的“调度员”。
-* 这种结构将程序的“启动流程”与“具体实现”完全解耦，易于阅读和后期维护。
-*/
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
+/**
+ * 快捷键配置模块
+ */
+void MainWindow::setupShortcuts()
 {
-    setupUI();            // 第一步：构建静态 UI 界面
-    setupShortcuts();     // 第二步：配置全局/局部快捷键监听
-    initDatabase();       // 第三步：建立数据库连接并检查表结构
-    loadData();           // 第四步：从本地数据库同步最新的序号数据到内存
+    // 定义快捷键序列（Ctrl+Shift+C），这在大多数场景下不会与系统冲突
+    QShortcut *shortcut = new QShortcut(QKeySequence("Ctrl+Shift+C"), this);
+
+    // 建立信号槽连接：当用户按下快捷键时，执行 onShortcutActivated 函数
+    connect(shortcut, &QShortcut::activated, this, &MainWindow::onShortcutActivated);
 }
 
 
-// 析构函数 (Destructor)   职责：安全退出。
-MainWindow::~MainWindow()
-{
-    // 程序关闭前确保释放数据库句柄，防止数据库文件被占用锁定
-    if (db.isOpen()) {
-        db.close();
-    }
-}
 
 
 // 核心业务槽函数：快捷键触发入口    逻辑对标 AHK 的 *$#C 流程
@@ -57,9 +47,40 @@ void MainWindow::onShortcutActivated()
     statusBar()->showMessage(QString("已存入剪贴板: %1 | 数据库已更新").arg(result), 3000);
 }
 
+
+
+
+
+/*
+* 构造函数 (Constructor)
+* 职责：仅作为各个独立功能模块的“调度员”。
+* 这种结构将程序的“启动流程”与“具体实现”完全解耦，易于阅读和后期维护。
+*/
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+{
+    setupUI();            // 第一步：构建静态 UI 界面
+    setupShortcuts();     // 第二步：配置全局/局部快捷键监听
+    initDatabase();       // 第三步：建立数据库连接并检查表结构
+    loadData();           // 第四步：从本地数据库同步最新的序号数据到内存
+}
+
+
+// 析构函数 (Destructor)   职责：安全退出。
+MainWindow::~MainWindow()
+{
+    // 程序关闭前确保释放数据库句柄，防止数据库文件被占用锁定
+    if (db.isOpen()) {
+        db.close();
+    }
+}
+
+
+
 // =================================================================
 // 功能模块实现区
 // =================================================================
+
 
 
 // 数据库初始化模块
@@ -122,17 +143,6 @@ void MainWindow::incrementAndSave()
     updateLabel();
 }
 
-/**
- * 快捷键配置模块
- */
-void MainWindow::setupShortcuts()
-{
-    // 定义快捷键序列（Ctrl+Shift+C），这在大多数场景下不会与系统冲突
-    QShortcut *shortcut = new QShortcut(QKeySequence("Ctrl+Shift+C"), this);
-
-    // 建立信号槽连接：当用户按下快捷键时，执行 onShortcutActivated 函数
-    connect(shortcut, &QShortcut::activated, this, &MainWindow::onShortcutActivated);
-}
 
 /**
  * 用户界面初始化模块
