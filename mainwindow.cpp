@@ -22,10 +22,8 @@ MainWindow::MainWindow(QWidget *parent)
     loadData();           // 第四步：从本地数据库同步最新的序号数据到内存
 }
 
-/**
- * 析构函数 (Destructor)
- * 职责：安全退出。
- */
+
+// 析构函数 (Destructor)   职责：安全退出。
 MainWindow::~MainWindow()
 {
     // 程序关闭前确保释放数据库句柄，防止数据库文件被占用锁定
@@ -34,10 +32,8 @@ MainWindow::~MainWindow()
     }
 }
 
-/**
- * 核心业务槽函数：快捷键触发入口
- * 逻辑对标 AHK 的 *$#C 流程
- */
+
+// 核心业务槽函数：快捷键触发入口    逻辑对标 AHK 的 *$#C 流程
 void MainWindow::onShortcutActivated()
 {
     // 步骤 A：生成当前时间序列字符串
@@ -65,9 +61,8 @@ void MainWindow::onShortcutActivated()
 // 功能模块实现区
 // =================================================================
 
-/**
- * 数据库初始化模块
- */
+
+// 数据库初始化模块
 void MainWindow::initDatabase()
 {
     // 加载 SQLite 驱动并指定数据库文件路径（当前运行目录下）
@@ -92,9 +87,8 @@ void MainWindow::initDatabase()
     query.exec(initRowSql);
 }
 
-/**
- * 数据读取模块
- */
+
+// 数据读取模块
 void MainWindow::loadData()
 {
     // 从数据库中提取当前生效的序号值
